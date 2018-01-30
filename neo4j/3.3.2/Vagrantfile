@@ -31,7 +31,13 @@ sudo mv ./apoc-3.3.0.1-all.jar /var/lib/neo4j/plugins
 
 rm /vagrant/data/dbms/auth
 
+sudo echo "root   soft    nofile  40000" >>  /etc/security/limits.conf
+sudo echo "root   hard    nofile  40000" >>  /etc/security/limits.conf
+sudo echo "vagrant   soft    nofile  40000" >>  /etc/security/limits.conf
+sudo echo "vagrant   hard    nofile  40000" >>  /etc/security/limits.conf
 sudo sed -i -e 's/#dbms.connectors.default_listen_address=0.0.0.0/dbms.connectors.default_listen_address='"$1"'/g' /etc/neo4j/neo4j.conf
+sudo sed -i -e 's/#NEO4J_ULIMIT_NOFILE=40000/NEO4J_ULIMIT_NOFILE=40000/g' /etc/default/neo4j
+
 neo4j-admin set-initial-password $4
 sudo neo4j restart
 
