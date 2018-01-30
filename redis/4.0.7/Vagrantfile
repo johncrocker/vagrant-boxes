@@ -1,0 +1,53 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+require 'yaml'
+
+current_dir    = File.dirname(File.expand_path(__FILE__))
+configs        = YAML.load_file("#{current_dir}/config.yaml")
+vagrant_config = configs['configs'][configs['configs']['use']]
+
+$PROVISIONSCRIPT = <<SCRIPT
+
+sudo apt-get install apt-transport-https build-essential tcl -y
+sudo apt-get update
+mkdir /vagrant/data
+wget http://download.redis.io/releases/redis-$2.tar.gz
+tar xzf redis-$2.tar.gz
+cd redis-$2
+make
+make test
+sudo make install
+sudo mkdir /etc/redis
+sudo mkdir /var/redis
+sudo cp utils/redis_init_script /etc/init.d/redis_6379
+sudo cp redis.conf /etc/redis/6379.conf
+sudo sed -i -e 's/daemonize no/daemonize yes/g' /etc/redis/6379.conf
+sudo sed -i -e 's/logfile \\\"\\\"/logfile \\\"\\\/var\\\/log\\\/redis_6379.log\\\"/g' /etc/redis/6379.conf
+sudo sed -i -e 's/dir \\\.\\\//dir \\\"\\\/vagrant\\\/data\\\"/g' /etc/redis/6379.conf
+
+sudo update-rc.d redis_6379 defaults
+sudo /etc/init.d/redis_6379 start
+
+SCRIPT
+
+Vagrant.configure("2") do |config|
+	config.vm.hostname = "redis"
+	config.vm.box = "ubuntu/trusty64"
+	config.vbguest.auto_update = true
+	config.vbguest.no_remote = false
+  
+	config.vm.provider :virtualbox do |vbox|
+		vbox.memory = 512
+		vbox.cpus = 2
+		vbox.name="redis"
+	end
+	
+	config.vm.network  "private_network", ip: vagrant_config['private_ip']
+	config.vm.network "forwarded_port", guest: 6379, host: 6379, protocol: "tcp"
+	
+	config.vm.provision "shell" do |s|
+		s.inline = $PROVISIONSCRIPT
+		s.args = [vagrant_config['private_ip'], vagrant_config['redis_version'] ]
+	end
+	
+end

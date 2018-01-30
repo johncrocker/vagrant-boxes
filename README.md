@@ -16,3 +16,7 @@ Reusable and configurable Vagrant Boxes
 #### NGINX Base
 
 - NGINX Web server
+
+#### Redis
+
+- Redis 4.0.7 
