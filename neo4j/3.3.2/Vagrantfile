@@ -1,0 +1,63 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+require 'yaml'
+
+current_dir    = File.dirname(File.expand_path(__FILE__))
+configs        = YAML.load_file("#{current_dir}/config.yaml")
+vagrant_config = configs['configs'][configs['configs']['use']]
+
+$PROVISIONSCRIPT = <<SCRIPT
+
+wget -O - https://debian.neo4j.org/neotechnology.gpg.key | sudo apt-key add -
+echo 'deb https://debian.neo4j.org/repo stable/' | sudo tee /etc/apt/sources.list.d/neo4j.list
+sudo add-apt-repository ppa:openjdk-r/ppa
+sudo apt-get update -y
+
+sudo apt-get install openjdk-8-jdk -y
+sudo update-alternatives --config java
+sudo update-alternatives --config javac
+mkdir /vagrant/data
+mkdir /var/lib/neo4j
+ln -s /vagrant/data /var/lib/neo4j/data
+
+echo debconf neo4j/question select "I ACCEPT" | sudo debconf-set-selections
+echo debconf neo4j/question seen true | sudo debconf-set-selections
+
+sudo apt-get install neo4j-enterprise=$2 -y
+
+echo Downloading APOC
+wget -q --no-check-certificate https://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/download/$3/apoc-$3-all.jar
+sudo mv ./apoc-3.3.0.1-all.jar /var/lib/neo4j/plugins
+
+rm /vagrant/data/dbms/auth
+
+sudo sed -i -e 's/#dbms.connectors.default_listen_address=0.0.0.0/dbms.connectors.default_listen_address='"$1"'/g' /etc/neo4j/neo4j.conf
+neo4j-admin set-initial-password $4
+sudo neo4j restart
+
+SCRIPT
+
+Vagrant.configure("2") do |config|
+	config.vm.hostname = "neo4j"
+	config.vm.box = "ubuntu/trusty64"
+	config.vbguest.auto_update = true
+	config.vbguest.no_remote = false
+  
+	config.vm.provider :virtualbox do |vbox|
+		vbox.memory = 8096
+		vbox.cpus = 2
+		vbox.name="neo4j"
+	end
+	
+	config.vm.network  "private_network", ip: vagrant_config['private_ip']
+	config.vm.network "forwarded_port", guest: 7474, host: 7474, protocol: "tcp"
+	config.vm.network "forwarded_port", guest: 7473, host: 7473, protocol: "tcp"
+	config.vm.network "forwarded_port", guest: 7687, host: 7687, protocol: "tcp"
+	config.vm.network "forwarded_port", guest: 1337, host: 1337, protocol: "tcp"
+	
+	config.vm.provision "shell" do |s|
+		s.inline = $PROVISIONSCRIPT
+		s.args = [vagrant_config['private_ip'], vagrant_config['neo4j_version'], vagrant_config['apoc_version'], vagrant_config['neo4j_password']]
+	end
+	
+end

@@ -1,0 +1,71 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+require 'yaml'
+
+current_dir    = File.dirname(File.expand_path(__FILE__))
+configs        = YAML.load_file("#{current_dir}/config.yaml")
+vagrant_config = configs['configs'][configs['configs']['use']]
+
+$PROVISIONSCRIPT = <<SCRIPT
+
+if [ $(dpkg-query -W -f='${Status}' couchbase-server 2>/dev/null | grep -c "ok installed") -eq 0 ]; then
+	apt-get update -y
+	apt-get install libssl1.0.0 unzip -y
+	wget -q --no-check-certificate https://packages.couchbase.com/releases/$2/couchbase-server-enterprise_$2-ubuntu14.04_amd64.deb
+	#wget -q http://packages.couchbase.com/releases/$2/couchbase-server-enterprise_$2_x86_64.deb
+	dpkg -i couchbase-server-enterprise_$2-ubuntu14.04_amd64.deb
+	rm couchbase-server-enterprise_$2-ubuntu14.04_amd64.deb
+fi
+
+service couchbase-server start
+echo Waiting 10 seconds because Couchbase needs time to wake up fully..........
+sleep 10
+rm -rf /vagrant/data
+mkdir -p /vagrant/data
+
+echo Initialising Node
+/opt/couchbase/bin/couchbase-cli node-init -c $1:8091 -u $3 -p $4 --node-init-data-path=/vagrant/data
+
+echo Initialising Cluster
+/opt/couchbase/bin/couchbase-cli cluster-init -c $1 --cluster-username=$3 --cluster-password=$4 --cluster-ramsize=4096
+
+echo Hacking Web UI to allow for bigger documents to be edited
+echo >>/opt/couchbase/lib/ns_server/erlang/lib/ns_server/priv/public/js/documents.js
+echo "DocumentsSection.docsLimit = 1000000;" >>/opt/couchbase/lib/ns_server/erlang/lib/ns_server/priv/public/js/documents.js
+echo "DocumentsSection.docBytesLimit = 25000000;" >>/opt/couchbase/lib/ns_server/erlang/lib/ns_server/priv/public/js/documents.js
+
+SCRIPT
+
+Vagrant.configure("2") do |config|
+	config.vm.hostname = "couchbase"
+	config.vm.box = "ubuntu/trusty64"
+	config.vbguest.auto_update = true
+	config.vbguest.no_remote = false
+  
+	config.vm.provider :virtualbox do |vbox|
+		vbox.memory = 8096
+		vbox.cpus = 2
+		vbox.name="Couchbase"
+	end
+	
+	config.vm.network  "private_network", ip: vagrant_config['private_ip']
+	config.vm.network "forwarded_port", guest: 8091, host: 8091, protocol: "tcp"
+	config.vm.network "forwarded_port", guest: 8092, host: 8092, protocol: "tcp"
+	config.vm.network "forwarded_port", guest: 11207, host: 11207, protocol: "tcp"
+	config.vm.network "forwarded_port", guest: 11209, host: 11209, protocol: "tcp"
+	config.vm.network "forwarded_port", guest: 11210, host: 11210, protocol: "tcp"
+	config.vm.network "forwarded_port", guest: 11211, host: 11211, protocol: "tcp"
+	config.vm.network "forwarded_port", guest: 11214, host: 11214, protocol: "tcp"
+	config.vm.network "forwarded_port", guest: 11215, host: 11215, protocol: "tcp"
+	config.vm.network "forwarded_port", guest: 18091, host: 18091, protocol: "tcp"
+	config.vm.network "forwarded_port", guest: 18092, host: 18092, protocol: "tcp"		
+		for i in 21100..21299
+			config.vm.network "forwarded_port", guest: i, host: i, protocol: "tcp"
+		end
+	
+	config.vm.provision "shell" do |s|
+		s.inline = $PROVISIONSCRIPT
+		s.args = [vagrant_config['private_ip'], vagrant_config['cb_version'], vagrant_config['cb_username'], vagrant_config['cb_password']]
+	end
+	
+end
