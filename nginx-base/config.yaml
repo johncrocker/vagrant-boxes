@@ -1,0 +1,5 @@
+
+configs:
+    use: 'default'
+    default:
+        private_ip: '192.168.56.101'        

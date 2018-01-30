@@ -1,0 +1,48 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+require 'yaml'
+
+current_dir    = File.dirname(File.expand_path(__FILE__))
+configs        = YAML.load_file("#{current_dir}/config.yaml")
+vagrant_config = configs['configs'][configs['configs']['use']]
+
+$PROVISIONSCRIPT = <<SCRIPT
+
+curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg
+sudo mv microsoft.gpg /etc/apt/trusted.gpg.d/microsoft.gpg
+sudo sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/microsoft-ubuntu-trusty-prod trusty main" > /etc/apt/sources.list.d/dotnetdev.list'
+
+sudo apt-get install apt-transport-https -y
+sudo apt-get update
+sudo apt-get install nginx dotnet-sdk-$2 -y
+
+mkdir /vagrant/html
+sudo mv /usr/share/nginx/html/* /vagrant/html/
+sudo rm -rf /usr/share/nginx/html
+sudo ln -s /vagrant/html /usr/share/nginx
+
+sudo service nginx start
+SCRIPT
+
+Vagrant.configure("2") do |config|
+	config.vm.hostname = "dotnetcore"
+	config.vm.box = "ubuntu/trusty64"
+	config.vbguest.auto_update = true
+	config.vbguest.no_remote = false
+  
+	config.vm.provider :virtualbox do |vbox|
+		vbox.memory = 2048
+		vbox.cpus = 2
+		vbox.name="dotnetcore"
+	end
+	
+	config.vm.network  "private_network", ip: vagrant_config['private_ip']
+	config.vm.network "forwarded_port", guest: 80, host: 80, protocol: "tcp"
+	config.vm.network "forwarded_port", guest: 443, host: 443, protocol: "tcp"
+	
+	config.vm.provision "shell" do |s|
+		s.inline = $PROVISIONSCRIPT
+		s.args = [vagrant_config['private_ip'], vagrant_config['dotnetcore_version']]
+	end
+	
+end
