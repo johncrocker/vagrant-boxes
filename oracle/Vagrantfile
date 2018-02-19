@@ -1,0 +1,82 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+require 'yaml'
+
+current_dir    = File.dirname(File.expand_path(__FILE__))
+configs        = YAML.load_file("#{current_dir}/config.yaml")
+vagrant_config = configs['configs'][configs['configs']['use']]
+
+$PROVISIONSCRIPT = <<SCRIPT
+swapsize=2048
+
+# does the swap file already exist?
+grep -q "swapfile" /etc/fstab
+
+# if not then create it
+if [ $? -ne 0 ]; then
+  echo 'swapfile not found. Adding swapfile.'
+  fallocate -l ${swapsize}M /swapfile
+  chmod 600 /swapfile
+  mkswap /swapfile
+  swapon /swapfile
+  echo '/swapfile none swap defaults 0 0' >> /etc/fstab
+else
+  echo 'swapfile found. No changes made.'
+fi
+
+mkdir /vagrant/data
+
+if [ ! -f /vagrant/data/libaio_0.3.104-1_i386.deb ] 
+then
+echo Downloading Dependencies
+wget --directory-prefix /vagrant/data --quiet --no-check-certificate http://oss.oracle.com/debian/dists/unstable/main/binary-i386/libaio_0.3.104-1_i386.deb
+fi
+
+if [ ! -f /vagrant/data/oracle-xe-client_10.2.0.1-1.2_i386.deb ] 
+then
+echo Downloading Oracle Express Client 10.2.0 it may take a while...
+wget --directory-prefix /vagrant/data --quiet --no-check-certificate https://oss.oracle.com/debian/dists/unstable/non-free/binary-i386/oracle-xe-client_10.2.0.1-1.2_i386.deb
+fi
+
+if [ ! -f /vagrant/data/oracle-xe-client_10.2.0.1-1.2_i386.deb ] 
+then
+echo Downloading Oracle Express 10.2.0 it may take a while...
+wget --directory-prefix /vagrant/data --quiet --no-check-certificate https://oss.oracle.com/debian/dists/unstable/non-free/binary-i386/oracle-xe_10.2.0.1-1.1_i386.deb
+fi
+
+sudo apt-get install libc6-i386 -y
+sudo dpkg -i --force-architecture /vagrant/data/libaio_0.3.104-1_i386.deb
+sudo dpkg -i --force-all --force-architecture /vagrant/data/oracle-xe_10.2.0.1-1.1_i386.deb
+sudo dpkg -i --force-all --force-architecture /vagrant/data/oracle-xe-client_10.2.0.1-1.2_i386.deb
+
+echo "ORACLE_HOME=/usr/lib/oracle/xe/app/oracle/product/10.2.0/server" >> /home/vagrant/.bashrc
+echo "PATH=\$PATH:\$ORACLE_HOME/bin" >> /home/vagrant/.bashrc
+echo "export ORACLE_HOME" >> /home/vagrant/.bashrc
+echo "export ORACLE_SID=XE" >> /home/vagrant/.bashrc
+echo "export PATH" >> /home/vagrant/.bashrc
+
+sudo /etc/init.d/oracle-xe configure
+SCRIPT
+
+Vagrant.configure("2") do |config|
+	config.vm.hostname = "oracle"
+	config.vm.box = "ubuntu/trusty64"
+	config.vbguest.auto_update = true
+	config.vbguest.no_remote = false
+  
+	config.vm.provider :virtualbox do |vbox|
+		vbox.memory = 4096
+		vbox.cpus = 2
+		vbox.name="oracle"
+	end
+	
+	config.vm.network  "private_network", ip: vagrant_config['private_ip']
+	config.vm.network "forwarded_port", guest: 1521, host: 1521, protocol: "tcp"		
+	config.vm.network "forwarded_port", guest: 8080, host: 8080, protocol: "tcp"
+	  
+	config.vm.provision "shell" do |s|
+		s.inline = $PROVISIONSCRIPT
+		s.args = [vagrant_config['private_ip'] ]
+	end
+	
+end
