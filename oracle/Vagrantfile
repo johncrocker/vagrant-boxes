@@ -55,7 +55,7 @@ echo "export ORACLE_HOME" >> /home/vagrant/.bashrc
 echo "export ORACLE_SID=XE" >> /home/vagrant/.bashrc
 echo "export PATH" >> /home/vagrant/.bashrc
 
-sudo /etc/init.d/oracle-xe configure
+# sudo /etc/init.d/oracle-xe configure
 SCRIPT
 
 Vagrant.configure("2") do |config|
