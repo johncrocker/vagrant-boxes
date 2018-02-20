@@ -38,7 +38,7 @@ echo Downloading Oracle Express Client 10.2.0 it may take a while...
 wget --directory-prefix /vagrant/data --quiet --no-check-certificate https://oss.oracle.com/debian/dists/unstable/non-free/binary-i386/oracle-xe-client_10.2.0.1-1.2_i386.deb
 fi
 
-if [ ! -f /vagrant/data/oracle-xe-client_10.2.0.1-1.2_i386.deb ] 
+if [ ! -f /vagrant/data/oracle-xe_10.2.0.1-1.1_i386.deb ] 
 then
 echo Downloading Oracle Express 10.2.0 it may take a while...
 wget --directory-prefix /vagrant/data --quiet --no-check-certificate https://oss.oracle.com/debian/dists/unstable/non-free/binary-i386/oracle-xe_10.2.0.1-1.1_i386.deb
