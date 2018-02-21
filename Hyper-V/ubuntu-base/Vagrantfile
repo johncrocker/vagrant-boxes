@@ -1,0 +1,35 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+require 'yaml'
+
+current_dir    = File.dirname(File.expand_path(__FILE__))
+configs        = YAML.load_file("#{current_dir}/config.yaml")
+vagrant_config = configs['configs'][configs['configs']['use']]
+
+$PROVISIONSCRIPT = <<SCRIPT
+
+sudo apt-get install apt-transport-https -y
+sudo apt-get update
+
+SCRIPT
+
+Vagrant.configure("2") do |config|
+	config.vm.hostname = "ubuntu"
+	config.vm.box = "bento/ubuntu-14.04"
+	config.vm.network "public_network"
+	config.vbguest.auto_update = true
+	config.vbguest.no_remote = false
+	
+	config.vm.provider "hyperv" do |vb|		 
+		vb.memory = 512
+		vb.cpus = 1		 
+	end
+	
+	config.vm.synced_folder ".","/vagrant", type: "smb", mount_options: ["vers=2.1,vers=3.0"]
+	
+	config.vm.provision "shell" do |s|
+		s.inline = $PROVISIONSCRIPT
+		s.args = [vagrant_config['private_ip'] ]
+	end
+	
+end

@@ -1,0 +1,8 @@
+
+configs:
+    use: 'default'
+    default:
+        private_ip: '192.168.56.101'
+        cb_version: '4.6.2'
+        cb_username: 'Administrator'
+        cb_password: 'Win2k8'
