@@ -25,10 +25,10 @@ sleep 10
 sudo chmod a+rwx /data
 
 echo Initialising Node
-echo /opt/couchbase/bin/couchbase-cli node-init -c 127.0.0.1:8091 -u $3 -p $4 --node-init-data-path=/data
+/opt/couchbase/bin/couchbase-cli node-init -c 127.0.0.1:8091 -u $3 -p $4 --node-init-data-path=/data
 
 echo Initialising Cluster
-echo /opt/couchbase/bin/couchbase-cli cluster-init -c 127.0.0.1 --cluster-username=$3 --cluster-password=$4 --cluster-ramsize=4096
+/opt/couchbase/bin/couchbase-cli cluster-init -c 127.0.0.1 --cluster-username=$3 --cluster-password=$4 --cluster-ramsize=4096
 
 echo Hacking Web UI to allow for bigger documents to be edited
 echo >>/opt/couchbase/lib/ns_server/erlang/lib/ns_server/priv/public/js/documents.js
